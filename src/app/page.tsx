@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSwipe } from "@/hooks/use-swipe";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { AdSenseBanner } from '@/components/adsense-banner'; // Added import
 
 const WIKIPEDIA_API_BASE = "https://en.wikipedia.org/w/api.php";
 
@@ -126,11 +127,11 @@ export default function Home() {
   });
 
   return (
-    <div className="flex flex-col h-screen bg-background" {...swipeHandlers}>
+    <div className="flex flex-col h-screen bg-background">
       <PageControls
         appName="BookOfSand"
       />
-      <div className="flex-grow relative flex items-center">
+      <div className="flex-grow relative flex items-center min-h-0" {...swipeHandlers}> {/* Added min-h-0 to parent of ScrollArea */}
         <Button
           variant="outline"
           size="icon"
@@ -167,6 +168,7 @@ export default function Home() {
           <ArrowRight className="h-5 w-5 md:h-6 md:w-6" />
         </Button>
       </div>
+      <AdSenseBanner /> {/* AdSense banner added here */}
     </div>
   );
 }
