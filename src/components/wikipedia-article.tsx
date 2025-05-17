@@ -2,11 +2,12 @@
 "use client";
 
 import type { HTMLAttributes } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ExternalLink } from "lucide-react";
 import { ArticleSkeleton } from "./article-skeleton";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface WikipediaArticleProps extends HTMLAttributes<HTMLDivElement> {
   title: string | null;
@@ -30,7 +31,6 @@ export function WikipediaArticle({ title, htmlContent, isLoading, error, classNa
     );
   }
 
-  // Case: No article loaded yet, or content explicitly null after an attempt (but not a specific error string)
   if (!title || htmlContent === null) {
     return (
        <div className={cn("p-4 text-center text-muted-foreground mx-auto max-w-4xl", className)}>
@@ -39,7 +39,19 @@ export function WikipediaArticle({ title, htmlContent, isLoading, error, classNa
     );
   }
 
-  // Case: Article loaded, title exists, but summary content is an empty string
+  const wikipediaLink = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+
+  const renderFooter = () => (
+    <CardFooter className="pt-4">
+      <Button variant="link" asChild className="p-0 h-auto text-base">
+        <a href={wikipediaLink} target="_blank" rel="noopener noreferrer">
+          Read full article on Wikipedia
+          <ExternalLink className="ml-2 h-4 w-4" />
+        </a>
+      </Button>
+    </CardFooter>
+  );
+
   if (htmlContent === "") {
     return (
       <Card className={cn("m-2 md:m-4 overflow-hidden shadow-xl", className)} {...props}>
@@ -51,11 +63,11 @@ export function WikipediaArticle({ title, htmlContent, isLoading, error, classNa
             No summary is available for this topic. It might be a disambiguation page or an article without an introductory section.
           </p>
         </CardContent>
+        {renderFooter()}
       </Card>
     );
   }
 
-  // Case: Article loaded with actual summary HTML
   return (
     <Card className={cn("m-2 md:m-4 overflow-hidden shadow-xl", className)} {...props}>
       <CardHeader className="bg-card-foreground/5">
@@ -67,6 +79,7 @@ export function WikipediaArticle({ title, htmlContent, isLoading, error, classNa
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
       </CardContent>
+      {renderFooter()}
     </Card>
   );
 }
