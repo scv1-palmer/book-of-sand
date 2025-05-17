@@ -7,7 +7,6 @@ import { PageControls } from '@/components/page-controls';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const INITIAL_PAGE_TITLE = "Book of Sand";
 const WIKIPEDIA_API_BASE = "https://en.wikipedia.org/w/api.php";
 
 interface Article {
@@ -87,9 +86,12 @@ export default function Home() {
   }, [navigateToNewPage, toast]);
 
   useEffect(() => {
-    navigateToNewPage(INITIAL_PAGE_TITLE);
+    // Fetch a random page on initial load
+    if (history.length === 0) { // Only fetch if history is empty (true initial load)
+        fetchRandomPage();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Load initial page only once
+  }, [fetchRandomPage]); // fetchRandomPage is memoized, so this runs once on mount.
 
   const handleSwipe = () => {
     if (!isLoading) {
