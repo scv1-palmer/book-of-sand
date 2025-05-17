@@ -14,7 +14,7 @@ const WIKIPEDIA_API_BASE = "https://en.wikipedia.org/w/api.php";
 
 interface Article {
   title: string;
-  content: string | null; // Null when content is not yet fetched
+  content: string | null; // Null when content is not yet fetched or error
 }
 
 export default function Home() {
@@ -24,59 +24,92 @@ export default function Home() {
   const { toast } = useToast();
   const initialFetchDone = useRef(false);
 
-  const fetchPageContent = useCallback(async (title: string): Promise<string | null> => {
-    try {
-      const response = await fetch(`${WIKIPEDIA_API_BASE}?action=parse&page=${encodeURIComponent(title)}&prop=text&formatversion=2&format=json&origin=*`);
-      if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.statusText}`);
-      }
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error.info || `Could not load page: ${title}`);
-      }
-      return data.parse.text;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "An unknown error occurred";
-      setError(message);
-      toast({ title: "Error fetching page", description: message, variant: "destructive" });
-      return null;
+  const fetchPageSummary = useCallback(async (title: string): Promise<string> => {
+    const params = new URLSearchParams({
+      action: "query",
+      prop: "extracts",
+      exintro: "true", // Get only the intro section (summary)
+      explaintext: "false", // Get HTML
+      titles: title,
+      format: "json",
+      origin: "*",
+      redirects: "1", // Follow redirects
+    });
+    const response = await fetch(`${WIKIPEDIA_API_BASE}?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`Wikipedia API error: ${response.status} for title "${title}"`);
     }
-  }, [toast]);
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.info || `Could not load page summary for "${title}"`);
+    }
+    
+    const pages = data.query.pages;
+    const pageId = Object.keys(pages)[0];
+    
+    if (!pageId || !pages[pageId]) {
+      throw new Error(`No page data found in API response for title "${title}"`);
+    }
+
+    const pageData = pages[pageId];
+
+    // pageId === "-1" indicates a page that doesn't exist after checking redirects
+    if (pageData.missing !== undefined || pageId === "-1") { 
+       throw new Error(`The page "${title}" does not exist or could not be found.`);
+    }
+
+    // If extract is a string (even empty), return it.
+    // An empty string often means it's a disambiguation page or has no intro.
+    if (typeof pageData.extract === 'string') {
+      return pageData.extract; 
+    } else {
+      // Fallback for rare cases where extract isn't a string for an existing page.
+      return ""; 
+    }
+  }, []);
   
   const loadAndSetArticle = useCallback(async (title: string) => {
     setIsLoading(true);
     setError(null);
-    setCurrentArticle({ title, content: null }); // Show title while loading
+    setCurrentArticle({ title, content: null }); // Show title, clear old content while loading summary
 
-    const content = await fetchPageContent(title);
-    if (content !== null) {
-      setCurrentArticle({ title, content });
-    } else {
-      setCurrentArticle(prev => prev ? { ...prev, content: null } : null);
+    try {
+      const summaryContent = await fetchPageSummary(title);
+      setCurrentArticle({ title, content: summaryContent }); // summaryContent can be ""
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unknown error occurred";
+      setError(message); // This will be picked up by WikipediaArticle component
+      toast({ title: "Error Loading Summary", description: message, variant: "destructive" });
+      // Keep current title, set content to null to indicate error or no content
+      setCurrentArticle(prev => prev ? { ...prev, content: null } : { title, content: null });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  }, [fetchPageContent]);
+  }, [fetchPageSummary, toast, setIsLoading, setError, setCurrentArticle]);
 
   const fetchRandomPage = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(true); // For fetching the title itself
     setError(null);
+    // setCurrentArticle(null); // Clear previous article immediately
     try {
       const response = await fetch(`${WIKIPEDIA_API_BASE}?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`);
       if (!response.ok) throw new Error('Failed to fetch random page title');
       const data = await response.json();
       const randomTitle = data.query.random[0].title;
       if (randomTitle) {
-        loadAndSetArticle(randomTitle);
+        await loadAndSetArticle(randomTitle); 
       } else {
-        throw new Error('No random title received');
+        throw new Error('No random title received from API');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unknown error occurred fetching random page";
       setError(message);
       toast({ title: "Error", description: message, variant: "destructive" });
-      setIsLoading(false);
+      setCurrentArticle(null); // Clear article info if title fetch fails
+      setIsLoading(false); // Ensure loading is false if title fetch itself fails
     }
-  }, [loadAndSetArticle, toast]);
+    // setIsLoading(false) for summary loading is handled by loadAndSetArticle's finally block
+  }, [loadAndSetArticle, toast, setIsLoading, setError, setCurrentArticle]);
 
   useEffect(() => {
     if (!initialFetchDone.current) {
@@ -84,12 +117,12 @@ export default function Home() {
       initialFetchDone.current = true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchRandomPage]); // fetchRandomPage is memoized
 
   const swipeHandlers = useSwipe({
     onSwipedLeft: fetchRandomPage,
     onSwipedRight: fetchRandomPage,
-    threshold: 75, // Adjusted threshold for better swipe detection
+    threshold: 75,
   });
 
   return (
@@ -98,7 +131,6 @@ export default function Home() {
         appName="BookOfSand"
       />
       <div className="flex-grow relative flex items-center">
-        {/* Left Button - hidden on small screens, swipe is primary for mobile */}
         <Button
           variant="outline"
           size="icon"
@@ -112,19 +144,18 @@ export default function Home() {
 
         <ScrollArea className="flex-grow h-full">
           <main
-            className={`article-container min-h-full ${isLoading ? 'loading' : ''} pt-4 pb-4 md:pt-8 md:pb-8 px-2 md:px-0`} // Added padding for article within scroll area
+            className={`article-container min-h-full ${isLoading && currentArticle?.content === null ? 'loading' : ''} pt-4 pb-4 md:pt-8 md:pb-8 px-2 md:px-0`}
           >
             <WikipediaArticle
               title={currentArticle?.title ?? null}
               htmlContent={currentArticle?.content ?? null}
-              isLoading={isLoading && currentArticle?.content === null}
+              isLoading={isLoading && currentArticle?.content === null} // Loading if overall isLoading is true AND content specifically is null
               error={error}
-              className="mx-auto max-w-4xl" // Center article and set max width
+              className="mx-auto max-w-4xl"
             />
           </main>
         </ScrollArea>
 
-        {/* Right Button - hidden on small screens, swipe is primary for mobile */}
         <Button
           variant="outline"
           size="icon"

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { HTMLAttributes } from 'react';
@@ -9,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 interface WikipediaArticleProps extends HTMLAttributes<HTMLDivElement> {
   title: string | null;
-  htmlContent: string | null;
+  htmlContent: string | null; // Can be "", null, or HTML string
   isLoading: boolean;
   error: string | null;
 }
@@ -21,7 +22,7 @@ export function WikipediaArticle({ title, htmlContent, isLoading, error, classNa
 
   if (error) {
     return (
-      <Alert variant="destructive" className="m-4">
+      <Alert variant="destructive" className={cn("m-4 mx-auto max-w-4xl", className)}>
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
@@ -29,14 +30,32 @@ export function WikipediaArticle({ title, htmlContent, isLoading, error, classNa
     );
   }
 
+  // Case: No article loaded yet, or content explicitly null after an attempt (but not a specific error string)
   if (!title || htmlContent === null) {
     return (
-       <div className="p-4 text-center text-muted-foreground">
-         <p>Swipe to load a new page or use the controls.</p>
+       <div className={cn("p-4 text-center text-muted-foreground mx-auto max-w-4xl", className)}>
+         <p>Swipe or use controls to load a random Wikipedia page summary.</p>
        </div>
     );
   }
 
+  // Case: Article loaded, title exists, but summary content is an empty string
+  if (htmlContent === "") {
+    return (
+      <Card className={cn("m-2 md:m-4 overflow-hidden shadow-xl", className)} {...props}>
+        <CardHeader className="bg-card-foreground/5">
+          <CardTitle className="text-2xl md:text-3xl font-bold text-primary">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6">
+          <p className="text-muted-foreground">
+            No summary is available for this topic. It might be a disambiguation page or an article without an introductory section.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Case: Article loaded with actual summary HTML
   return (
     <Card className={cn("m-2 md:m-4 overflow-hidden shadow-xl", className)} {...props}>
       <CardHeader className="bg-card-foreground/5">
