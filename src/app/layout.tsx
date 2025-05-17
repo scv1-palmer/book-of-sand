@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
-import { Lora, Geist_Sans } from 'next/font/google';
+import { Lora } from 'next/font/google';
+import { GeistSans } from 'geist/sans';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -9,11 +10,8 @@ const lora = Lora({
   display: 'swap',
 });
 
-const geistSans = Geist_Sans({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-  display: 'swap',
-});
+// GeistSans from 'geist/sans' already provides the variable and className
+const geistSans = GeistSans;
 
 export const metadata: Metadata = {
   title: 'BookOfSand',
