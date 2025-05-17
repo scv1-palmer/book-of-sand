@@ -1,7 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useSwipe } from '@/hooks/use-swipe';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { WikipediaArticle } from '@/components/wikipedia-article';
 import { PageControls } from '@/components/page-controls';
 import { useToast } from "@/hooks/use-toast";
@@ -16,11 +16,10 @@ interface Article {
 
 export default function Home() {
   const [currentArticle, setCurrentArticle] = useState<Article | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const initialFetchDone = useRef(false);
 
   const fetchPageContent = useCallback(async (title: string): Promise<string | null> => {
     try {
@@ -50,19 +49,10 @@ export default function Home() {
     if (content !== null) {
       setCurrentArticle({ title, content });
     } else {
-      // Error already handled by fetchPageContent, keep currentArticle as is or clear content
       setCurrentArticle(prev => prev ? { ...prev, content: null } : null);
     }
     setIsLoading(false);
   }, [fetchPageContent]);
-
-  const navigateToNewPage = useCallback((title: string) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(title);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    loadAndSetArticle(title);
-  }, [history, historyIndex, loadAndSetArticle]);
 
   const fetchRandomPage = useCallback(async () => {
     setIsLoading(true);
@@ -73,7 +63,7 @@ export default function Home() {
       const data = await response.json();
       const randomTitle = data.query.random[0].title;
       if (randomTitle) {
-        navigateToNewPage(randomTitle);
+        loadAndSetArticle(randomTitle);
       } else {
         throw new Error('No random title received');
       }
@@ -83,52 +73,29 @@ export default function Home() {
       toast({ title: "Error", description: message, variant: "destructive" });
       setIsLoading(false);
     }
-  }, [navigateToNewPage, toast]);
+  }, [loadAndSetArticle, toast]);
 
   useEffect(() => {
-    // Fetch a random page on initial load
-    if (history.length === 0) { // Only fetch if history is empty (true initial load)
-        fetchRandomPage();
+    if (!initialFetchDone.current) {
+      fetchRandomPage();
+      initialFetchDone.current = true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchRandomPage]); // fetchRandomPage is memoized, so this runs once on mount.
-
-  const handleSwipe = () => {
-    if (!isLoading) {
-      fetchRandomPage();
-    }
-  };
-
-  const swipeHandlers = useSwipe({
-    onSwipedLeft: handleSwipe,
-    onSwipedRight: handleSwipe,
-    threshold: 75,
-  });
-
-  const goBack = () => {
-    if (historyIndex > 0) {
-      const prevIndex = historyIndex - 1;
-      setHistoryIndex(prevIndex);
-      loadAndSetArticle(history[prevIndex]);
-    }
-  };
+  }, [fetchRandomPage]); // fetchRandomPage is memoized and stable
 
   return (
     <div className="flex flex-col h-screen bg-background">
       <PageControls
-        onBack={goBack}
-        onRandom={fetchRandomPage}
-        canGoBack={historyIndex > 0}
         appName="BookOfSand"
       />
-      <ScrollArea className="flex-grow" {...swipeHandlers}>
+      <ScrollArea className="flex-grow">
         <main
           className={`article-container min-h-full ${isLoading ? 'loading' : ''}`}
         >
           <WikipediaArticle
             title={currentArticle?.title ?? null}
             htmlContent={currentArticle?.content ?? null}
-            isLoading={isLoading && currentArticle?.content === null} // Only show full skeleton if content is truly loading
+            isLoading={isLoading && currentArticle?.content === null}
             error={error}
           />
         </main>
