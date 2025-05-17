@@ -81,12 +81,14 @@ export default function Home() {
       initialFetchDone.current = true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchRandomPage]); // fetchRandomPage is memoized and stable
+  }, []); // fetchRandomPage is memoized, but we only want this effect on initial mount
 
   return (
     <div className="flex flex-col h-screen bg-background">
       <PageControls
         appName="BookOfSand"
+        onFetchRandom={fetchRandomPage}
+        isLoading={isLoading}
       />
       <ScrollArea className="flex-grow">
         <main
