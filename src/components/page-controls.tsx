@@ -1,7 +1,7 @@
 
 "use client";
 
-import { BookOpen, ArrowLeft, ArrowRight, Shuffle } from "lucide-react";
+import { BookOpen, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PageControlsProps {
@@ -22,9 +22,6 @@ export function PageControls({ appName, onFetchRandom, isLoading }: PageControls
           <Button variant="outline" size="icon" onClick={onFetchRandom} disabled={isLoading} aria-label="Previous Random Page">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onFetchRandom} disabled={isLoading} aria-label="Shuffle Random Page">
-            <Shuffle className="h-5 w-5" />
-          </Button>
           <Button variant="outline" size="icon" onClick={onFetchRandom} disabled={isLoading} aria-label="Next Random Page">
             <ArrowRight className="h-5 w-5" />
           </Button>
@@ -33,3 +30,4 @@ export function PageControls({ appName, onFetchRandom, isLoading }: PageControls
     </header>
   );
 }
+
